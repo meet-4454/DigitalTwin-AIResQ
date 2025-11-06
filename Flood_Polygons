@@ -1,0 +1,83 @@
+import leafmap.maplibregl as leafmap
+import json
+
+
+
+with open('flood_gurugram.geojson', 'r') as f:
+    flood_data = json.load(f)
+
+m = leafmap.Map(
+    center=[77.0266, 28.4595],
+    zoom=16,
+    pitch=60,
+    bearing=-17,
+    style=f"https://api.maptiler.com/maps/streets/style.json?key={MAPTILER_KEY}",
+  
+)
+
+
+
+# Add 3D buildings layer
+building_layer = {
+    "id": "3d-buildings",
+    "source": "composite",
+    "source-layer": "building",
+    "filter": ["==", "extrude", "true"],
+    "type": "fill-extrusion",
+    "minzoom": 15,
+    "paint": {
+        "fill-extrusion-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "height"],
+            0, "lightgray",
+            50, "royalblue",
+            100, "lightblue",
+        ],
+        "fill-extrusion-height": ["get", "height"],
+        "fill-extrusion-base": ["get", "min_height"],
+        "fill-extrusion-opacity": 0
+    },
+}
+
+m.add_layer(building_layer)
+
+# Add flood water source
+m.add_source("flood-data", {
+    "type": "geojson",
+    "data": flood_data
+})
+
+# Add 3D flood water layer with realistic coloring
+flood_layer = {
+    "id": "3d-flood-water",
+    "source": "flood-data",
+    "type": "fill-extrusion",
+    "paint": {
+        # Color based on depth - darker blue for deeper water
+        "fill-extrusion-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "depth_m"],
+            0, "rgba(173, 216, 230, 0.7)",      # Light blue for shallow
+            0.5, "rgba(100, 149, 237, 0.75)",   # Cornflower blue
+            1.0, "rgba(65, 105, 225, 0.8)",     # Royal blue
+            2.0, "rgba(25, 25, 112, 0.85)",     # Midnight blue for deep
+        ],
+        # Height represents water depth (scaled by meters)
+        "fill-extrusion-height": [
+            "*",
+            ["get", "depth_m"],
+            1  # Scale factor - 1 meter = 1 meter on map
+        ],
+        "fill-extrusion-base": 0,
+        "fill-extrusion-opacity": 0.7
+    },
+}
+
+m.add_layer(flood_layer)
+
+# Add layer control
+m.add_layer_control()
+
+m
